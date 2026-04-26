@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>取手ファースト放送局</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;700&family=Share+Tech+Mono&display=swap');
+
+  :root {
+    --ink: #1a1a2e;
+    --paper: #f5f0e8;
+    --red: #c0392b;
+    --gold: #b8860b;
+    --wave: #2563eb;
+    --muted: #6b6b6b;
+    --card: #fffdf7;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Noto Serif JP', serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* ── ヘッダー ── */
+  header {
+    width: 100%;
+    background: var(--ink);
+    color: var(--paper);
+    padding: 18px 32px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .station-id {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--gold);
+    text-transform: uppercase;
+  }
+
+  .station-name {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 2px;
+  }
+
+  .station-sub {
+    font-size: 11px;
+    color: #aaa;
+    letter-spacing: 1px;
+    margin-top: 2px;
+  }
+
+  .live-badge {
+    margin-left: auto;
+    background: var(--red);
+    color: #fff;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    padding: 5px 12px;
+    border-radius: 2px;
+    animation: blink 1.8s ease-in-out infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* ── メインエリア ── */
+  main {
+    width: 100%;
+    max-width: 780px;
+    padding: 32px 20px;
+    flex: 1;
+  }
+
+  /* ── 電波ビジュアライザー ── */
+  .visualizer-wrap {
+    background: var(--ink);
+    border-radius: 8px;
+    padding: 20px 24px 16px;
+    margin-bottom: 28px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .freq-label {
+    font-family: 'Share Tech Mono', monospace;
+    color: var(--gold);
+    font-size: 13px;
+    letter-spacing: 2px;
+    margin-bottom: 12px;
+  }
+
+  canvas#waveCanvas {
+    width: 100%;
+    height: 60px;
+    display: block;
+  }
+
+  .now-playing-label {
+    color: #888;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    margin-top: 10px;
+  }
+
+  #nowPlayingText {
+    color: var(--paper);
+    font-size: 13px;
+    margin-top: 4px;
+    line-height: 1.5;
+    min-height: 20px;
+    transition: opacity 0.3s;
+  }
+
+  /* ── コントロール ── */
+  .controls {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    font-family: 'Noto Serif JP', serif;
+    font-size: 14px;
+    padding: 12px 24px;
+    border: 2px solid var(--ink);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 1px;
+  }
+
+  .btn-primary {
+    background: var(--red);
+    color: #fff;
+    border-color: var(--red);
+  }
+  .btn-primary:hover { background: #a93226; }
+  .btn-primary:disabled { background: #ccc; border-color: #ccc; cursor: not-allowed; }
+
+  .btn-secondary {
+    background: transparent;
+    color: var(--ink);
+  }
+  .btn-secondary:hover { background: var(--ink); color: var(--paper); }
+  .btn-secondary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-stop {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+  }
+  .btn-stop:hover { background: #333; }
+
+  /* ── プログラムリスト ── */
+  .section-title {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: var(--muted);
+    text-transform: uppercase;
+    border-bottom: 1px solid #ccc;
+    padding-bottom: 8px;
+    margin-bottom: 16px;
+  }
+
+  .program-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+
+  .program-card {
+    background: var(--card);
+    border: 1px solid #ddd;
+    border-left: 4px solid var(--ink);
+    border-radius: 4px;
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .program-card:hover {
+    border-left-color: var(--red);
+    box-shadow: 2px 2px 0 var(--ink);
+    transform: translate(-1px, -1px);
+  }
+
+  .program-card.active {
+    border-left-color: var(--red);
+    background: #fff8f8;
+  }
+
+  .program-card.loading {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .prog-category {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--red);
+    margin-bottom: 4px;
+  }
+
+  .prog-title {
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+
+  .prog-desc {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  .prog-icon {
+    font-size: 22px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  /* ── 原稿テキストエリア ── */
+  .script-area {
+    background: var(--card);
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 20px;
+    min-height: 120px;
+    font-size: 14px;
+    line-height: 2;
+    color: var(--ink);
+    white-space: pre-wrap;
+    margin-bottom: 20px;
+    display: none;
+    position: relative;
+  }
+
+  .script-area.visible { display: block; }
+
+  .script-cursor {
+    display: inline-block;
+    width: 2px;
+    height: 1em;
+    background: var(--red);
+    vertical-align: text-bottom;
+    animation: cursor-blink 0.8s steps(1) infinite;
+  }
+
+  @keyframes cursor-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  /* ── ステータスバー ── */
+  .status-bar {
+    background: var(--ink);
+    color: #aaa;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 1px;
+    padding: 8px 16px;
+    border-radius: 4px;
+    margin-bottom: 24px;
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+
+  .status-item span { color: var(--gold); }
+
+  /* ── フッター ── */
+  footer {
+    width: 100%;
+    background: var(--ink);
+    color: #666;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-align: center;
+    padding: 12px;
+  }
+
+  /* ── スピード ── */
+  .speed-control {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .speed-control input {
+    width: 100px;
+    accent-color: var(--red);
+  }
+
+  @media (max-width: 600px) {
+    header { padding: 14px 16px; gap: 12px; }
+    .station-name { font-size: 17px; }
+    .live-badge { font-size: 10px; padding: 4px 8px; }
+    main { padding: 20px 14px; }
+    .controls { gap: 8px; }
+    .btn { padding: 13px 16px; font-size: 13px; }
+    .speed-control { flex-wrap: wrap; }
+    .speed-control input { width: 80px; }
+    .program-card { padding: 12px 12px; }
+    .prog-title { font-size: 14px; }
+  }
+
+  /* ── 注記 ── */
+  .notice {
+    background: #fff8e1;
+    border-left: 3px solid var(--gold);
+    padding: 10px 14px;
+    font-size: 12px;
+    color: #555;
+    line-height: 1.7;
+    margin-bottom: 20px;
+    border-radius: 2px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="station-id">TFB-AM 88.7 ／ 試作版 β</div>
+    <div class="station-name">取手ファースト放送局</div>
+    <div class="station-sub">Toride First Broadcast — AI-powered 24h community radio</div>
+  </div>
+  <div class="live-badge">● ON AIR</div>
+</header>
+
+<main>
+
+  <div class="visualizer-wrap">
+    <div class="freq-label">▶ 電波受信中 — 88.7 MHz FM TORIDE</div>
+    <canvas id="waveCanvas" width="740" height="60"></canvas>
+    <div class="now-playing-label">NOW READING</div>
+    <div id="nowPlayingText">プログラムを選んで「放送開始」を押してください</div>
+  </div>
+
+  <div class="notice">
+    ⚠️ <strong>試作版について：</strong>
+    ブラウザ内蔵の音声合成（Web Speech API）と Claude API を使用します。
+    音声の質はブラウザ・OSにより異なります。日本語音声が利用可能な環境が必要です。
+    情報は取手市公式サイトの最新データをもとにAIが生成します。
+  </div>
+
+  <div class="controls">
+    <button class="btn btn-primary" id="btnBroadcast" onclick="startBroadcast()">▶ 放送開始</button>
+    <button class="btn btn-stop" id="btnStop" onclick="stopBroadcast()" disabled>■ 停止</button>
+    <button class="btn btn-secondary" onclick="replayLast()" id="btnReplay" disabled>↺ 再生</button>
+    <div class="speed-control">
+      <label for="rateSlider">読み速度</label>
+      <input type="range" id="rateSlider" min="0.7" max="1.4" step="0.1" value="0.95">
+      <span id="rateLabel">0.95x</span>
+    </div>
+  </div>
+
+  <div class="status-bar">
+    <div class="status-item">STATUS: <span id="statusText">待機中</span></div>
+    <div class="status-item">TIME: <span id="clockText">--:--:--</span></div>
+    <div class="status-item">PROGRAM: <span id="currentProgram">未選択</span></div>
+  </div>
+
+  <div class="section-title">放送プログラム — 本日のラインナップ</div>
+
+  <div class="program-list">
+
+    <div class="program-card" id="card-news" onclick="selectProgram('news')">
+      <div>
+        <div class="prog-category">NEWS</div>
+        <div class="prog-title">取手市 最新お知らせ</div>
+        <div class="prog-desc">市の新着情報・行政お知らせをAIがまとめて読み上げます</div>
+      </div>
+      <div class="prog-icon">📰</div>
+    </div>
+
+    <div class="program-card" id="card-event" onclick="selectProgram('event')">
+      <div>
+        <div class="prog-category">EVENT</div>
+        <div class="prog-title">今週のイベント・行事案内</div>
+        <div class="prog-desc">取手ジャズフェスティバル、住まい支援など注目情報をご紹介</div>
+      </div>
+      <div class="prog-icon">🎷</div>
+    </div>
+
+    <div class="program-card" id="card-safety" onclick="selectProgram('safety')">
+      <div>
+        <div class="prog-category">SAFETY</div>
+        <div class="prog-title">防犯・防災 情報コーナー</div>
+        <div class="prog-desc">不審者情報・防災無線・市内安全情報をお伝えします</div>
+      </div>
+      <div class="prog-icon">🛡️</div>
+    </div>
+
+    <div class="program-card" id="card-life" onclick="selectProgram('life')">
+      <div>
+        <div class="prog-category">LIFE</div>
+        <div class="prog-title">市民生活 インフォメーション</div>
+        <div class="prog-desc">ごみ収集・公民館・LINE市役所・子育て支援など暮らしの情報</div>
+      </div>
+      <div class="prog-icon">🏘️</div>
+    </div>
+
+    <div class="program-card" id="card-morning" onclick="selectProgram('morning')">
+      <div>
+        <div class="prog-category">MORNING</div>
+        <div class="prog-title">おはよう取手！ 朝の5分放送</div>
+        <div class="prog-desc">今日の天気・行事・ひとことメッセージをお届けする朝のコーナー</div>
+      </div>
+      <div class="prog-icon">🌅</div>
+    </div>
+
+  </div>
+
+  <div class="script-area" id="scriptArea">
+    <span id="scriptText"></span><span class="script-cursor" id="cursor" style="display:none"></span>
+  </div>
+
+</main>
+
+<footer>
+  © 取手ファースト放送局（試作版） ／ Powered by Claude AI + Web Speech API ／ 情報は取手市公式データに基づきます
+</footer>
+
+<script>
+// ── 状態管理 ──
+let selectedProgram = null;
+let currentUtterance = null;
+let lastScript = '';
+let isBroadcasting = false;
+let animFrame = null;
+
+// ── プログラム定義 ──
+const programs = {
+  news: {
+    name: '取手市 最新お知らせ',
+    prompt: `あなたは「取手ファースト放送局」のAIアナウンサーです。
+以下の取手市の実際の最新情報をもとに、ラジオ放送の原稿を作成してください。
+
+【取手市の実際の最新情報（2026年4月時点）】
+- 広報とりで 2026年4月15日号 公開中。「とりで住ま入る（スマイル）支援プラン」で住宅購入・リノベーション支援実施中
+- 取手ジャズフェスティバル2026 Part1が市民会館 屋外特設会場で予定
+- MLB主催 PLAY BALL がFUYOUアリーナ藤代で開催予定
+- こどもまんなか PR動画＆ステッカー完成
+- 経済センサス-活動調査 実施中（市民への協力依頼）
+- スマホ市役所（取手市LINE）で市内公民館の予約が可能に（令和8年2月2日より）
+- 取手駅西口A街区地区 第一種市街地再開発事業の概要が公表
+
+【放送の注意点】
+- 温かく親しみやすいトーンで、市民に語りかけるように
+- 約400〜500文字、2〜3分で読める長さ
+- 冒頭は「こちらは取手ファースト放送局です。」で始める
+- 情報ソース：取手市公式ホームページ
+- 末尾は「詳しくは取手市公式ホームページをご確認ください。」で締める
+- 音声読み上げのため、記号や箇条書きは使わず、すべて話し言葉で書く`
+  },
+  event: {
+    name: '今週のイベント・行事案内',
+    prompt: `あなたは「取手ファースト放送局」のAIアナウンサーです。
+取手市のイベント・行事情報を紹介する放送原稿を作成してください。
+
+【取手市の実際のイベント情報】
+- 取手ジャズフェスティバル2026 Part1：市民会館 屋外特設会場で開催予定。取手市の夏の風物詩
+- MLB主催 PLAY BALL：FUYOUアリーナ藤代で開催。野球振興イベント
+- 旧渡辺甚吉邸主屋の一般公開（令和8年1月30日更新情報）
+- 弁護士など専門家による無料相談（令和8年3月）
+- 取手駅市民ギャラリー展示（令和8年4月〜9月）
+- 自転車ツーキニストが教える！自転車安全運転講演会
+- 結婚相談会の開催
+- 第10回Matchみんなのビジネスプランコンテスト ファイナル審査会
+- 東京藝大 市長賞記念演奏会（ピアノ・オペラ）
+
+冒頭は「こちらは取手ファースト放送局、イベント情報コーナーです。」で始める。
+約400〜500文字、すべて話し言葉で。テンションを少し上げて楽しそうに読む。`
+  },
+  safety: {
+    name: '防犯・防災 情報コーナー',
+    prompt: `あなたは「取手ファースト放送局」のAIアナウンサーです。
+取手市の防犯・防災情報を伝える放送原稿を作成してください。
+
+【取手市の実際の防犯・防災情報】
+- 不審者情報：取手市岡地内の路上で、登校中の女子生徒に自転車の男性が声掛け（4月25日頃）。茨城県警では付近パトロール強化中
+- 防犯アプリ「いばらきポリス」で地域の犯罪発生状況・不審者情報を配信中
+- 取手市新川での不審者情報（4月22日）
+- 林野火災注意報・警報 発令情報に注意
+- 防災無線放送内容（令和8年1月31日午前9時30分）
+- 取手市のなりすましメール（迷惑メール）への注意喚起
+
+【注意事項】
+冒頭は「こちらは取手ファースト放送局、防犯・防災情報コーナーです。」で始める。
+約400文字。落ち着いた、しかし分かりやすいトーンで。
+不審者情報は不安を煽らず、冷静に対処法を伝える。`
+  },
+  life: {
+    name: '市民生活 インフォメーション',
+    prompt: `あなたは「取手ファースト放送局」のAIアナウンサーです。
+取手市民の日常生活に役立つ情報を伝える放送原稿を作成してください。
+
+【取手市の実際の生活情報】
+- スマホ市役所（取手市LINE）：市内公民館の予約が令和8年2月2日より可能に。住民票・印鑑登録証明書等のオンライン申請も
+- 市民農園（ふれあい農園）：4月からの利用者を募集中
+- とりでっ子応援ギフトカード給付事業（事業終了）
+- 令和7年度県民交通災害共済のご案内
+- 「取手市一般廃棄物(ごみ)処理基本計画（改定案）」意見募集
+- 「取手市地球温暖化防止実行計画改定案」意見募集
+- 取手市出身のJICA青年海外協力隊員がカンボジアへ派遣
+- 移住・定住支援の情報「とりで住ま入る支援プラン」
+- 取手市の問合せ：0297-74-2141（代表）、開庁時間 平日8:30〜17:15
+
+冒頭は「こちらは取手ファースト放送局、市民生活インフォメーションです。」で始める。
+約400〜500文字。温かく、役に立つ情報を丁寧に。`
+  },
+  morning: {
+    name: 'おはよう取手！ 朝の5分放送',
+    prompt: `あなたは「取手ファースト放送局」の朝の番組アナウンサーです。
+取手市民に向けた、明るく元気な朝の放送原稿を作成してください。
+
+今日は2026年4月26日（日曜日）、茨城県取手市の朝です。
+
+【盛り込む内容】
+1. 元気な朝の挨拶
+2. 今日の天気について（春の取手、利根川沿いの爽やかな朝をイメージ）
+3. 今日の取手市おすすめ情報（取手ジャズフェス、旧渡辺甚吉邸など）
+4. 今週の注目：取手駅市民ギャラリー展示
+5. 取手市の魅力について一言（「ほどよく絶妙とりで」キャッチフレーズを自然に使う）
+6. 締めの言葉
+
+冒頭は「おはようございます。こちら取手ファースト放送局、日曜朝のひととき放送です。」で始める。
+約450文字。日曜の朝らしく、ゆったり、でも前向きなトーンで。`
+  }
+};
+
+// ── プログラム選択 ──
+function selectProgram(id) {
+  selectedProgram = id;
+  document.querySelectorAll('.program-card').forEach(c => c.classList.remove('active'));
+  document.getElementById('card-' + id).classList.add('active');
+  document.getElementById('currentProgram').textContent = programs[id].name;
+  setStatus('プログラム選択中');
+}
+
+// ── 放送開始 ──
+async function startBroadcast() {
+  if (!selectedProgram) {
+    alert('プログラムを選んでください。');
+    return;
+  }
+  if (isBroadcasting) return;
+
+  // iOS Safari対策：ユーザー操作タイミングで音声エンジンを初期化
+  initSpeechEngine();
+
+  isBroadcasting = true;
+  document.getElementById('btnBroadcast').disabled = true;
+  document.getElementById('btnStop').disabled = false;
+  document.getElementById('btnReplay').disabled = true;
+
+  const scriptArea = document.getElementById('scriptArea');
+  const scriptText = document.getElementById('scriptText');
+  const cursor = document.getElementById('cursor');
+
+  scriptArea.classList.add('visible');
+  scriptText.textContent = '';
+  cursor.style.display = 'inline-block';
+
+  setStatus('原稿生成中…');
+  document.getElementById('nowPlayingText').textContent = '📡 Claude AIが原稿を生成しています…';
+
+  try {
+    const script = await generateScript(selectedProgram, (chunk) => {
+      scriptText.textContent += chunk;
+      scriptArea.scrollTop = scriptArea.scrollHeight;
+    });
+
+    cursor.style.display = 'none';
+    lastScript = script;
+    document.getElementById('btnReplay').disabled = false;
+
+    setStatus('放送中');
+    document.getElementById('nowPlayingText').textContent = '🎙️ ' + programs[selectedProgram].name;
+
+    await speak(script);
+
+    setStatus('放送終了');
+    document.getElementById('nowPlayingText').textContent = '✅ 放送が完了しました';
+
+  } catch (e) {
+    setStatus('エラー');
+    document.getElementById('nowPlayingText').textContent = '⚠️ エラー: ' + e.message;
+    scriptText.textContent = '⚠️ ' + e.message;
+    cursor.style.display = 'none';
+  } finally {
+    isBroadcasting = false;
+    document.getElementById('btnBroadcast').disabled = false;
+    document.getElementById('btnStop').disabled = true;
+  }
+}
+
+// ── Claude API で原稿生成（iOS対応：ストリーミングなし） ──
+async function generateScript(programId, onChunk) {
+  const prog = programs[programId];
+
+  // iOS SafariはReadableStreamが不安定なため stream: false で一括取得
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      stream: false,
+      messages: [{ role: 'user', content: prog.prompt }]
+    })
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`API Error ${res.status}: ${errText.slice(0, 100)}`);
+  }
+
+  const data = await res.json();
+  const fullText = data.content?.[0]?.text || '';
+
+  // タイプライター風に少しずつ表示（ストリーミング体験を模倣）
+  const chunkSize = 8;
+  for (let i = 0; i < fullText.length; i += chunkSize) {
+    onChunk(fullText.slice(i, i + chunkSize));
+    await new Promise(r => setTimeout(r, 30));
+  }
+
+  return fullText;
+}
+
+// ── 音声エンジン初期化（iOS対策：ユーザー操作タイミングで必ず呼ぶ） ──
+let voicesReady = false;
+let cachedJpVoice = null;
+
+function initSpeechEngine() {
+  if (!window.speechSynthesis) return;
+  // iOS Safari: 無音utteranceを一発発火してロック解除
+  const dummy = new SpeechSynthesisUtterance('');
+  dummy.volume = 0;
+  window.speechSynthesis.speak(dummy);
+
+  // 音声リストを取得・キャッシュ
+  function loadVoices() {
+    const voices = window.speechSynthesis.getVoices();
+    if (voices.length > 0) {
+      cachedJpVoice = voices.find(v => v.lang === 'ja-JP') ||
+                      voices.find(v => v.lang.startsWith('ja')) ||
+                      null;
+      voicesReady = true;
+    }
+  }
+  loadVoices();
+  window.speechSynthesis.onvoiceschanged = loadVoices;
+}
+
+// ── Web Speech API 読み上げ ──
+function speak(text) {
+  return new Promise((resolve, reject) => {
+    if (!window.speechSynthesis) {
+      reject(new Error('このブラウザは音声合成をサポートしていません'));
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+
+    const chunks = splitIntoChunks(text, 120); // iOSは短めに
+    let idx = 0;
+
+    // iOS Safariは長時間の合成でハングするため定期的にkeep-alive
+    let keepAliveTimer = null;
+    function startKeepAlive() {
+      keepAliveTimer = setInterval(() => {
+        if (window.speechSynthesis.speaking) {
+          window.speechSynthesis.pause();
+          window.speechSynthesis.resume();
+        }
+      }, 8000);
+    }
+    function stopKeepAlive() {
+      if (keepAliveTimer) clearInterval(keepAliveTimer);
+    }
+
+    function speakChunk() {
+      if (idx >= chunks.length || !isBroadcasting) {
+        stopKeepAlive();
+        resolve();
+        return;
+      }
+
+      const utt = new SpeechSynthesisUtterance(chunks[idx]);
+      currentUtterance = utt;
+
+      if (cachedJpVoice) utt.voice = cachedJpVoice;
+      utt.lang = 'ja-JP';
+      utt.rate = parseFloat(document.getElementById('rateSlider').value);
+      utt.pitch = 1.0;
+      utt.volume = 1.0;
+
+      utt.onboundary = (e) => {
+        const pos = chunks.slice(0, idx).join('').length + (e.charIndex || 0);
+        updateNowPlaying(text, pos);
+      };
+
+      utt.onend = () => {
+        idx++;
+        // iOS: 少し間を置かないと次のチャンクが無音になることがある
+        setTimeout(speakChunk, 80);
+      };
+
+      utt.onerror = (e) => {
+        stopKeepAlive();
+        if (e.error === 'interrupted' || e.error === 'canceled') resolve();
+        else reject(new Error('音声合成エラー: ' + e.error));
+      };
+
+      window.speechSynthesis.speak(utt);
+      if (idx === 0) startKeepAlive();
+    }
+
+    speakChunk();
+  });
+}
+
+// iOS非対応のlookbehindを使わない文分割
+function splitIntoChunks(text, maxLen) {
+  // 句点・感嘆符・疑問符・改行で区切る（lookbehindなし）
+  const parts = text.split(/(。|！|？|\n)/);
+  const sentences = [];
+  for (let i = 0; i < parts.length; i += 2) {
+    const s = (parts[i] || '') + (parts[i + 1] || '');
+    if (s) sentences.push(s);
+  }
+
+  const chunks = [];
+  let current = '';
+  for (const s of sentences) {
+    if ((current + s).length > maxLen) {
+      if (current) chunks.push(current);
+      current = s;
+    } else {
+      current += s;
+    }
+  }
+  if (current) chunks.push(current);
+  return chunks.filter(c => c.trim());
+}
+
+// ── 停止 ──
+function stopBroadcast() {
+  isBroadcasting = false;
+  window.speechSynthesis.cancel();
+  setStatus('停止しました');
+  document.getElementById('nowPlayingText').textContent = '⏹️ 停止しました';
+  document.getElementById('btnBroadcast').disabled = false;
+  document.getElementById('btnStop').disabled = true;
+  document.getElementById('cursor').style.display = 'none';
+}
+
+// ── 再生 ──
+async function replayLast() {
+  if (!lastScript || isBroadcasting) return;
+  isBroadcasting = true;
+  document.getElementById('btnStop').disabled = false;
+  setStatus('再生中');
+  document.getElementById('nowPlayingText').textContent = '🔄 再生中…';
+  await speak(lastScript);
+  isBroadcasting = false;
+  document.getElementById('btnStop').disabled = true;
+  setStatus('完了');
+}
+
+// ── ステータス更新 ──
+function setStatus(t) {
+  document.getElementById('statusText').textContent = t;
+}
+
+function updateNowPlaying(text, pos) {
+  const snippet = text.substring(Math.max(0, pos - 5), pos + 25);
+  document.getElementById('nowPlayingText').textContent = '🎙️ …' + snippet + '…';
+}
+
+// ── 時計 ──
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clockText').textContent =
+    now.toLocaleTimeString('ja-JP', { hour12: false });
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── スピードスライダー ──
+document.getElementById('rateSlider').addEventListener('input', function() {
+  document.getElementById('rateLabel').textContent = this.value + 'x';
+});
+
+// ── 波形アニメーション ──
+const canvas = document.getElementById('waveCanvas');
+const ctx = canvas.getContext('2d');
+
+function drawWave() {
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const t = Date.now() / 1000;
+  const speaking = isBroadcasting && !window.speechSynthesis.paused;
+  const amp = speaking ? 18 : 4;
+
+  ctx.strokeStyle = '#2563eb';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+
+  for (let x = 0; x <= W; x++) {
+    const freq1 = speaking ? 3.5 : 1.5;
+    const freq2 = speaking ? 7 : 3;
+    const y = H / 2 +
+      Math.sin(x * 0.025 * freq1 + t * 3) * amp +
+      Math.sin(x * 0.04 * freq2 + t * 5) * (amp * 0.4);
+    x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  ctx.strokeStyle = '#93c5fd';
+  ctx.lineWidth = 0.8;
+  ctx.globalAlpha = 0.5;
+  ctx.beginPath();
+  for (let x = 0; x <= W; x++) {
+    const y = H / 2 +
+      Math.sin(x * 0.018 + t * 2.5 + 1) * (amp * 0.6);
+    x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  animFrame = requestAnimationFrame(drawWave);
+}
+drawWave();
+</script>
+</body>
+</html>
